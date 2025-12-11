@@ -22,7 +22,7 @@ A full-stack application for managing command submissions with rule-based valida
 
 ## 📺 Demo Video
 
-[🎥 Watch the Demo Video on Loom](https://loom.com/your-video-link) _(2-3 minute walkthrough)_
+[🎥 Watch the Demo Video on Loom](https://www.loom.com/share/05c55ba0644d423a9ae05c6f3f5f1ca4) _(2-3 minute walkthrough)_
 
 > **What's Covered in the Demo:**
 >
