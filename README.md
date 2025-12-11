@@ -2,58 +2,336 @@
 
 A full-stack application for managing command submissions with rule-based validation, credit system, and role-based access control.
 
-> **Hackathon Submission for Unbound** | [GitHub Repository](https://github.com/saran2006psg/unbound_hackathon)
-
----
-
-## 📋 Table of Contents
-
-1. [Demo Video](#-demo-video)
-2. [Features](#-features)
-3. [Tech Stack](#️-tech-stack)
-4. [Setup & Run Instructions](#-setup-and-run-instructions)
-5. [API Documentation](#-api-documentation)
-6. [API Usage Examples](#-api-usage-examples)
-7. [Frontend Features](#-frontend-features)
-8. [Bonus Feature: Rule Conflict Detection](#-bonus-feature-rule-conflict-detection)
-9. [Development](#-development)
+> **🚀 Live Demo**: [https://unbound-hackathon.vercel.app](https://unbound-hackathon.vercel.app)  
+> **📁 Repository**: [GitHub](https://github.com/saran2006psg/unbound_hackathon)
 
 ---
 
 ## 📺 Demo Video
 
-[🎥 Watch the Demo Video on Loom](https://www.loom.com/share/05c55ba0644d423a9ae05c6f3f5f1ca4) _(2-3 minute walkthrough)_
+🎥 **[Watch Complete Project Walkthrough](https://your-demo-video-link)**
 
-> **What's Covered in the Demo:**
->
-> - Complete system overview and architecture explanation
-> - User authentication and role-based access control
-> - Command submission and validation flow
-> - Admin panel features (user management, rule configuration)
-> - **Bonus Feature #1**: Rule Conflict Detection in action ⭐
-> - **Bonus Feature #2**: Multi-Admin Voting System with notifications ⭐
-> - Live demonstration of credit system and audit logging
-> - How the system was built (tech choices and implementation)
+**What's Covered:**
 
-### 🎯 System Walkthrough
+- Complete system overview and live deployment
+- User authentication and role-based access control
+- Command submission and validation flow
+- Admin panel features (user management, rule configuration)
+- **Bonus Feature #1**: Rule Conflict Detection ⭐
+- **Bonus Feature #2**: Multi-Admin Voting System with notifications ⭐
+- Live demonstration of credit system and audit logging
 
-**For Members (Regular Users):**
+---
 
-1. Login with API key
-2. View current credit balance
-3. Submit commands for validation
-4. See real-time feedback (accepted/rejected/no credits)
-5. Review command history with timestamps
+## ✨ Features
 
-**For Admins:**
+### Core Features ✅
 
-1. Access Admin Panel with four management tabs
-2. **Users Tab**: Create users, assign roles, manage credits
-3. **Rules Tab**:
-   - Create regex validation rules with approval thresholds
-   - Test patterns before creating
-   - **Check for conflicts** to prevent overlaps ⭐
-   - View all active rules with priorities
+- **API Key Authentication**: Secure access using API keys
+- **Role-Based Access Control**: Admin and Member roles with different permissions
+- **Credit System**: Credits deducted for executed commands (prevent abuse)
+- **Rule-Based Command Validation**: Configurable regex rules with priority-based matching
+- **Mock Command Execution**: Safe command simulation without actual shell execution
+- **Audit Trail**: Complete logging of all operations for security and debugging
+
+### 🎁 Bonus Features
+
+#### **Bonus #1: Rule Conflict Detection** ⭐
+
+- Prevents admins from creating overlapping regex rules
+- Tests new patterns against 15 default commands
+- Shows detailed conflict analysis with overlapping commands
+- Option to force-create rules when conflicts are intentional
+- Real-time pattern validation in Admin UI
+
+#### **Bonus #2: Multi-Admin Voting System** ⭐
+
+- Rules can require multiple admin approvals before activation
+- Configurable approval threshold (1-10 admins required)
+- Real-time notification system with unread count badge
+- Admins can vote **APPROVE** or **REJECT** with optional comments
+- Progress tracking: visual progress bar showing X/Y approvals
+- **Pending Rules** tab shows all rules awaiting approval
+- Notification bell polls every 30 seconds for new updates
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18 + Vite → **Deployed on Vercel**
+- **Backend**: Python FastAPI + Uvicorn → **Deployed on Render**
+- **Database**: Supabase PostgreSQL (live production database)
+
+---
+
+## 🚀 Setup and Run Instructions
+
+### Option 1: Use Live Deployment (Recommended)
+
+**🎯 Just visit: [https://unbound-hackathon.vercel.app](https://unbound-hackathon.vercel.app)**
+
+**Default Login:**
+
+```
+API Key: cgw_admin_default_key_change_in_production
+```
+
+### Option 2: Local Development
+
+#### Prerequisites
+
+- Python 3.9+
+- Node.js 16+ and npm
+- Git
+
+#### Backend Setup
+
+```bash
+# Clone repository
+git clone https://github.com/saran2006psg/unbound_hackathon.git
+cd unbound_hackathon/backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+.\venv\Scripts\Activate.ps1
+# macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file with Supabase credentials
+# Contact repo owner for credentials or set up your own Supabase project
+
+# Run backend
+python -m uvicorn main:app --reload
+```
+
+Backend available at: **http://localhost:8000**
+
+#### Frontend Setup
+
+```bash
+cd ../frontend
+
+# Install dependencies
+npm install
+
+# Run frontend
+npm run dev
+```
+
+Frontend available at: **http://localhost:3000**
+
+---
+
+## 📚 API Documentation
+
+### Authentication
+
+- **Header**: `x-api-key: your_api_key_here`
+- **Validation**: `GET /api/auth/validate`
+
+### Key Endpoints
+
+#### Commands
+
+```bash
+POST /api/commands              # Submit command for validation
+GET /api/commands/history       # Get user's command history
+```
+
+#### Users (Admin Only)
+
+```bash
+POST /api/users                 # Create new user
+GET /api/users                  # List all users
+PUT /api/users/{id}/credits     # Update user credits
+```
+
+#### Rules (Admin Only)
+
+```bash
+POST /api/rules                 # Create validation rule
+GET /api/rules                  # List all rules
+POST /api/rules/check-conflicts # Check for conflicts (Bonus #1)
+POST /api/rules/{id}/vote       # Vote on pending rule (Bonus #2)
+GET /api/rules/pending          # Get pending rules (Bonus #2)
+```
+
+### Live API Documentation
+
+- **Production**: [https://command-gateway-backend-pyjx.onrender.com/docs](https://command-gateway-backend-pyjx.onrender.com/docs)
+- **Local**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+## 🎮 Usage Examples
+
+### Basic Command Submission
+
+```bash
+curl -X POST "https://command-gateway-backend-pyjx.onrender.com/api/commands" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: cgw_admin_default_key_change_in_production" \
+  -d '{"command_text": "ls -la"}'
+```
+
+### Check Rule Conflicts (Bonus #1)
+
+```bash
+curl -X POST "https://command-gateway-backend-pyjx.onrender.com/api/rules/check-conflicts" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: cgw_admin_default_key_change_in_production" \
+  -d '{"pattern": "^ls"}'
+```
+
+### Create User
+
+```bash
+curl -X POST "https://command-gateway-backend-pyjx.onrender.com/api/users" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: cgw_admin_default_key_change_in_production" \
+  -d '{"name": "Test User", "role": "member", "credits": 50}'
+```
+
+---
+
+## 🎬 Demo Script for Recording
+
+### Test Data for Demo
+
+**Login:**
+
+```
+API Key: cgw_admin_default_key_change_in_production
+```
+
+**Create Users:**
+
+```
+Username: john_doe | Email: john@company.com | Role: member | Credits: 50
+Username: jane_admin | Email: jane@company.com | Role: admin | Credits: 100
+```
+
+**Create Rules:**
+
+```
+Pattern: help | Description: Show help information | Credit Cost: 1 | Roles: member,admin
+Pattern: backup.* | Description: Database backup operations | Credit Cost: 10 | Roles: admin
+Pattern: restart.* | Description: Restart services | Cost: 15 | Roles: admin | Threshold: 2
+```
+
+**Test Commands:**
+
+```
+help
+list files
+restart server
+backup database
+```
+
+**Conflict Demo:**
+Create rule with pattern `backup database` after `backup.*` exists → Shows conflict!
+
+---
+
+## 🏗️ Project Structure
+
+```
+unbound_hack/
+├── backend/                    # FastAPI Python backend
+│   ├── app/
+│   │   ├── models/            # Pydantic models
+│   │   ├── routes/            # API endpoints
+│   │   ├── services/          # Business logic
+│   │   └── middleware/        # Authentication
+│   ├── main.py               # FastAPI app
+│   └── requirements.txt      # Dependencies
+├── frontend/                  # React frontend
+│   ├── src/
+│   │   ├── pages/            # Login, Dashboard, AdminPanel
+│   │   ├── components/       # Reusable components
+│   │   └── services/         # API client
+│   └── package.json          # Dependencies
+└── README.md                 # This file
+```
+
+---
+
+## 🛡️ Security Features
+
+- ✅ **No Real Shell Execution** - All commands safely mocked
+- ✅ **API Key Authentication** - Secure access control
+- ✅ **Role-Based Permissions** - Admin vs Member access
+- ✅ **Input Validation** - Regex pattern validation
+- ✅ **Audit Logging** - Complete operation trail
+- ✅ **Credit System** - Prevents command spam
+- ✅ **HTTPS Deployment** - Secure production environment
+
+---
+
+## 🎯 Bonus Features Deep Dive
+
+### Bonus #1: Rule Conflict Detection
+
+**Problem Solved**: Prevents overlapping regex rules that could cause unexpected behavior.
+
+**How It Works**:
+
+1. Tests new pattern against 15 realistic commands
+2. Identifies conflicts with existing rules
+3. Shows detailed conflict report
+4. Prevents creation unless explicitly forced
+
+**Demo**: Try creating pattern `backup database` after `backup.*` exists!
+
+### Bonus #2: Multi-Admin Voting System
+
+**Problem Solved**: Critical rules need multiple admin approval for security.
+
+**How It Works**:
+
+1. Rules with `threshold > 1` go to PENDING status
+2. All admins get real-time notifications
+3. Admins vote APPROVE/REJECT with comments
+4. Progress tracking with visual bars
+5. Auto-activation when threshold met
+
+**Demo**: Create a rule with threshold=2, watch voting workflow!
+
+---
+
+## 📝 Default Configuration
+
+**Admin User**: API key `cgw_admin_default_key_change_in_production`
+
+**Pre-configured Rules**:
+
+- Block dangerous commands (`rm -rf /`, fork bombs)
+- Allow safe commands (`ls`, `cat`, `pwd`, `echo`)
+- Allow safe git operations (`git status`, `git log`)
+
+---
+
+## 💬 Support & Repository
+
+**🔗 Links**:
+
+- **Live Demo**: [https://unbound-hackathon.vercel.app](https://unbound-hackathon.vercel.app)
+- **GitHub**: [https://github.com/saran2006psg/unbound_hackathon](https://github.com/saran2006psg/unbound_hackathon)
+- **Backend API**: [https://command-gateway-backend-pyjx.onrender.com](https://command-gateway-backend-pyjx.onrender.com)
+
+**Built with ❤️ for the Unbound Hackathon** 2. **Users Tab**: Create users, assign roles, manage credits 3. **Rules Tab**:
+
+- Create regex validation rules with approval thresholds
+- Test patterns before creating
+- **Check for conflicts** to prevent overlaps ⭐
+- View all active rules with priorities
+
 4. **Pending Rules Tab** ⭐:
    - View rules awaiting approval
    - Vote APPROVE/REJECT with comments
