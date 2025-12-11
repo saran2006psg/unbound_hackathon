@@ -1,5 +1,0 @@
-# Render.com Build Configuration
-# This file tells Render how to build and run your backend
-
-# Python version
-python-3.11.0
