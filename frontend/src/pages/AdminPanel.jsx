@@ -16,6 +16,8 @@ const AdminPanel = () => {
   // Rule form
   const [newRule, setNewRule] = useState({ pattern: '', action: 'AUTO_ACCEPT', priority: 100, description: '' });
   const [regexValidation, setRegexValidation] = useState({ valid: null, message: '' });
+  const [conflictCheck, setConflictCheck] = useState({ checked: false, hasConflicts: false, data: null });
+  const [forceCreate, setForceCreate] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'users') loadUsers();
@@ -90,17 +92,47 @@ const AdminPanel = () => {
     }
   };
 
+  const handleCheckConflicts = async () => {
+    if (!newRule.pattern) return;
+    try {
+      const result = await api.checkConflicts(newRule.pattern);
+      setConflictCheck({
+        checked: true,
+        hasConflicts: result.has_conflicts,
+        data: result
+      });
+    } catch (error) {
+      showMessage('error', error.message);
+    }
+  };
+
   const handleCreateRule = async (e) => {
     e.preventDefault();
+    
+    // If conflicts exist and not forcing, show warning
+    if (conflictCheck.hasConflicts && !forceCreate) {
+      if (!confirm('This rule conflicts with existing rules. Are you sure you want to create it anyway?')) {
+        return;
+      }
+      setForceCreate(true);
+    }
+    
     setLoading(true);
     try {
-      await api.createRule(newRule);
+      await api.createRuleWithForce(newRule, forceCreate);
       showMessage('success', 'Rule created successfully');
       setNewRule({ pattern: '', action: 'AUTO_ACCEPT', priority: 100, description: '' });
       setRegexValidation({ valid: null, message: '' });
+      setConflictCheck({ checked: false, hasConflicts: false, data: null });
+      setForceCreate(false);
       await loadRules();
     } catch (error) {
-      showMessage('error', error.message);
+      // Handle 409 conflict error
+      if (error.message.includes('conflicts detected') || error.message.includes('409')) {
+        showMessage('error', 'Rule conflicts detected. Click "Check Conflicts" to see details.');
+      } else {
+        showMessage('error', error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -343,6 +375,20 @@ const AdminPanel = () => {
                       >
                         Test
                       </button>
+                      <button
+                        type="button"
+                        onClick={handleCheckConflicts}
+                        style={{
+                          backgroundColor: '#e67e22',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Check Conflicts
+                      </button>
                     </div>
                     {regexValidation.valid !== null && (
                       <div style={{
@@ -354,6 +400,56 @@ const AdminPanel = () => {
                         color: regexValidation.valid ? '#155724' : '#721c24'
                       }}>
                         {regexValidation.message}
+                      </div>
+                    )}
+                    {conflictCheck.checked && (
+                      <div style={{
+                        marginTop: '0.5rem',
+                        padding: '1rem',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        backgroundColor: conflictCheck.hasConflicts ? '#fff3cd' : '#d4edda',
+                        color: conflictCheck.hasConflicts ? '#856404' : '#155724',
+                        border: conflictCheck.hasConflicts ? '1px solid #ffc107' : '1px solid #28a745'
+                      }}>
+                        {conflictCheck.hasConflicts ? (
+                          <>
+                            <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                              ⚠️ Conflicts Found: {conflictCheck.data.total_conflicts} rule(s) with {conflictCheck.data.total_overlapping_commands} overlapping command(s)
+                            </div>
+                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                              {conflictCheck.data.conflicts.map((conflict, idx) => (
+                                <div key={idx} style={{ marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: idx < conflictCheck.data.conflicts.length - 1 ? '1px solid #ffc107' : 'none' }}>
+                                  <div><strong>Rule #{conflict.rule_id}</strong>: {conflict.pattern}</div>
+                                  <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                                    Action: {conflict.action} | Priority: {conflict.priority}
+                                  </div>
+                                  <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                                    <strong>Overlapping commands:</strong> {conflict.overlapping_commands.join(', ')}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #ffc107' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={forceCreate}
+                                  onChange={(e) => setForceCreate(e.target.checked)}
+                                  style={{ marginRight: '0.5rem' }}
+                                />
+                                <span>I understand and want to create this rule anyway</span>
+                              </label>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                              ✅ No Conflicts Detected
+                            </div>
+                            <div>This pattern doesn't conflict with any existing rules.</div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

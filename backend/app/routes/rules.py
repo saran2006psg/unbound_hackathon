@@ -8,9 +8,26 @@ router = APIRouter(prefix="/api/rules", tags=["rules"])
 
 
 @router.post("", response_model=RuleResponse, dependencies=[Depends(require_admin)])
-async def create_rule(rule_create: RuleCreate):
-    """Create a new rule (admin only)"""
+async def create_rule(rule_create: RuleCreate, force: bool = False):
+    """Create a new rule (admin only)
+    
+    Args:
+        rule_create: Rule data
+        force: If True, create rule even if conflicts exist
+    """
     try:
+        # Check for conflicts unless force is True
+        if not force:
+            conflict_result = RuleService.detect_conflicts(rule_create.pattern)
+            if conflict_result["has_conflicts"]:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "Rule conflicts detected",
+                        "conflicts": conflict_result
+                    }
+                )
+        
         rule = RuleService.create_rule(rule_create)
         return RuleResponse(
             id=rule.id,
@@ -19,6 +36,8 @@ async def create_rule(rule_create: RuleCreate):
             priority=rule.priority,
             description=rule.description
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -58,3 +77,39 @@ async def validate_regex(request: RegexValidateRequest):
         return {"valid": True, "message": "Regex pattern is valid"}
     else:
         return {"valid": False, "message": f"Invalid regex: {error}"}
+
+
+@router.post("/check-conflicts", dependencies=[Depends(require_admin)])
+async def check_conflicts(request: dict):
+    """Check if a pattern conflicts with existing rules (admin only)"""
+    pattern = request.get("pattern")
+    test_commands = request.get("test_commands")
+    
+    if not pattern:
+        raise HTTPException(status_code=400, detail="Pattern is required")
+    
+    try:
+        result = RuleService.detect_conflicts(pattern, test_commands)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test-pattern", dependencies=[Depends(require_admin)])
+async def test_pattern(request: dict):
+    """Test a pattern against specific commands (admin only)"""
+    pattern = request.get("pattern")
+    commands = request.get("commands")
+    
+    if not pattern:
+        raise HTTPException(status_code=400, detail="Pattern is required")
+    if not commands:
+        raise HTTPException(status_code=400, detail="Commands are required")
+    
+    try:
+        results = RuleService.test_pattern_against_commands(pattern, commands)
+        return {"results": results}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

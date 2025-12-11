@@ -111,6 +111,28 @@ class ApiService {
     });
   }
 
+  async checkConflicts(pattern, testCommands = null) {
+    return this.request('/api/rules/check-conflicts', {
+      method: 'POST',
+      body: JSON.stringify({ pattern, test_commands: testCommands }),
+    });
+  }
+
+  async testPattern(pattern, commands) {
+    return this.request('/api/rules/test-pattern', {
+      method: 'POST',
+      body: JSON.stringify({ pattern, commands }),
+    });
+  }
+
+  async createRuleWithForce(ruleData, force = false) {
+    const url = force ? '/api/rules?force=true' : '/api/rules';
+    return this.request(url, {
+      method: 'POST',
+      body: JSON.stringify(ruleData),
+    });
+  }
+
   // Audit
   async getAuditLogs() {
     return this.request('/api/audit');
