@@ -128,11 +128,36 @@ const Dashboard = () => {
                     padding: '0.75rem 2rem',
                     borderRadius: '4px',
                     fontSize: '1rem',
+                    fontWeight: '600',
                     cursor: (loading || !command.trim() || user?.credits === 0) ? 'not-allowed' : 'pointer',
-                    opacity: (loading || !command.trim() || user?.credits === 0) ? 0.5 : 1
+                    opacity: (loading || !command.trim() || user?.credits === 0) ? 0.5 : 1,
+                    transition: 'all 0.2s ease',
+                    transform: 'scale(1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading && command.trim() && user?.credits > 0) {
+                      e.target.style.backgroundColor = '#229954';
+                      e.target.style.transform = 'scale(1.02)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!loading && command.trim() && user?.credits > 0) {
+                      e.target.style.backgroundColor = '#27ae60';
+                      e.target.style.transform = 'scale(1)';
+                    }
+                  }}
+                  onMouseDown={(e) => {
+                    if (!loading && command.trim() && user?.credits > 0) {
+                      e.target.style.transform = 'scale(0.98)';
+                    }
+                  }}
+                  onMouseUp={(e) => {
+                    if (!loading && command.trim() && user?.credits > 0) {
+                      e.target.style.transform = 'scale(1)';
+                    }
                   }}
                 >
-                  {loading ? 'Processing...' : 'Execute'}
+                  {loading ? '⏳ Processing...' : '▶ Execute'}
                 </button>
               </div>
             </div>
