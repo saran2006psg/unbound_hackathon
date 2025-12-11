@@ -133,6 +133,33 @@ class ApiService {
     });
   }
 
+  // Voting endpoints
+  async getPendingRules() {
+    return this.request('/api/rules/pending');
+  }
+
+  async voteOnRule(ruleId, voteData) {
+    return this.request(`/api/rules/${ruleId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify(voteData),
+    });
+  }
+
+  async getRuleVotes(ruleId) {
+    return this.request(`/api/rules/${ruleId}/votes`);
+  }
+
+  async getNotifications(unreadOnly = false) {
+    const url = unreadOnly ? '/api/rules/notifications?unread_only=true' : '/api/rules/notifications';
+    return this.request(url);
+  }
+
+  async markNotificationRead(notificationId) {
+    return this.request(`/api/rules/notifications/${notificationId}/read`, {
+      method: 'PUT',
+    });
+  }
+
   // Audit
   async getAuditLogs() {
     return this.request('/api/audit');

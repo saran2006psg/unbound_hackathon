@@ -30,7 +30,8 @@ A full-stack application for managing command submissions with rule-based valida
 > - User authentication and role-based access control
 > - Command submission and validation flow
 > - Admin panel features (user management, rule configuration)
-> - **Bonus Feature**: Rule Conflict Detection in action ⭐
+> - **Bonus Feature #1**: Rule Conflict Detection in action ⭐
+> - **Bonus Feature #2**: Multi-Admin Voting System with notifications ⭐
 > - Live demonstration of credit system and audit logging
 > - How the system was built (tech choices and implementation)
 
@@ -46,14 +47,20 @@ A full-stack application for managing command submissions with rule-based valida
 
 **For Admins:**
 
-1. Access Admin Panel with three management tabs
+1. Access Admin Panel with four management tabs
 2. **Users Tab**: Create users, assign roles, manage credits
 3. **Rules Tab**:
-   - Create regex validation rules
+   - Create regex validation rules with approval thresholds
    - Test patterns before creating
    - **Check for conflicts** to prevent overlaps ⭐
-   - View all existing rules with priorities
-4. **Audit Tab**: View complete audit trail of all system operations
+   - View all active rules with priorities
+4. **Pending Rules Tab** ⭐:
+   - View rules awaiting approval
+   - Vote APPROVE/REJECT with comments
+   - See progress bars (X/Y approvals)
+   - View all votes from other admins
+5. **Audit Tab**: View complete audit trail of all system operations
+6. **Notification Bell** 🔔: Real-time notifications for pending rules and decisions
 
 **Command Validation Flow:**
 
@@ -77,12 +84,29 @@ Deduct credit → Log to audit → Return result
 
 ### 🎁 Bonus Features
 
-- **Rule Conflict Detection** ⭐
-  - Prevents admins from creating overlapping regex rules
-  - Tests new patterns against 15 default commands
-  - Shows detailed conflict analysis with overlapping commands
-  - Option to force-create rules when conflicts are intentional
-  - Real-time pattern validation in Admin UI
+#### 1. Rule Conflict Detection ⭐
+
+- Prevents admins from creating overlapping regex rules
+- Tests new patterns against 15 default commands
+- Shows detailed conflict analysis with overlapping commands
+- Option to force-create rules when conflicts are intentional
+- Real-time pattern validation in Admin UI
+
+#### 2. Voting Thresholds (Multi-Admin Approval) ⭐
+
+- Rules can require multiple admin approvals before activation
+- Configurable approval threshold (1-10 admins required)
+- Rules with threshold > 1 go to **PENDING** status
+- Real-time notification system with unread count badge
+- Admins can vote **APPROVE** or **REJECT** with optional comments
+- Progress tracking: visual progress bar showing X/Y approvals
+- Automatic rule activation when threshold is met
+- Automatic rule rejection if enough rejections
+- Prevents duplicate votes (each admin votes once per rule)
+- Complete vote history with admin names, timestamps, and comments
+- **Pending Rules** tab shows all rules awaiting approval
+- Notification bell polls every 30 seconds for new updates
+- Database tracking: `rule_votes` and `rule_notifications` tables
 
 ## 🛠️ Tech Stack
 

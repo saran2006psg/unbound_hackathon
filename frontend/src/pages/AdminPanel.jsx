@@ -1,29 +1,50 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import NotificationBell from '../components/NotificationBell';
 import api from '../services/api';
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [rules, setRules] = useState([]);
+  const [pendingRules, setPendingRules] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [currentUser, setCurrentUser] = useState(null);
 
   // User form
   const [newUser, setNewUser] = useState({ name: '', role: 'member', credits: 10 });
   
   // Rule form
-  const [newRule, setNewRule] = useState({ pattern: '', action: 'AUTO_ACCEPT', priority: 100, description: '' });
+  const [newRule, setNewRule] = useState({ pattern: '', action: 'AUTO_ACCEPT', priority: 100, description: '', approval_threshold: 1 });
   const [regexValidation, setRegexValidation] = useState({ valid: null, message: '' });
   const [conflictCheck, setConflictCheck] = useState({ checked: false, hasConflicts: false, data: null });
   const [forceCreate, setForceCreate] = useState(false);
+  
+  // Voting
+  const [selectedRuleVotes, setSelectedRuleVotes] = useState({});
+  const [voteComments, setVoteComments] = useState({});
+
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'users') loadUsers();
     if (activeTab === 'rules') loadRules();
+    if (activeTab === 'pending') loadPendingRules();
     if (activeTab === 'audit') loadAuditLogs();
   }, [activeTab]);
+
+  const loadCurrentUser = async () => {
+    try {
+      const user = await api.getCurrentUser();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('Failed to load current user:', error);
+    }
+  };
 
   const loadUsers = async () => {
     try {
@@ -38,6 +59,26 @@ const AdminPanel = () => {
     try {
       const data = await api.getAllRules();
       setRules(data);
+    } catch (error) {
+      showMessage('error', error.message);
+    }
+  };
+
+  const loadPendingRules = async () => {
+    try {
+      const data = await api.getPendingRules();
+      setPendingRules(data);
+      // Load votes for each pending rule
+      const votesData = {};
+      for (const rule of data) {
+        try {
+          const votes = await api.getRuleVotes(rule.id);
+          votesData[rule.id] = votes;
+        } catch (error) {
+          console.error(`Failed to load votes for rule ${rule.id}:`, error);
+        }
+      }
+      setSelectedRuleVotes(votesData);
     } catch (error) {
       showMessage('error', error.message);
     }
@@ -121,11 +162,15 @@ const AdminPanel = () => {
     try {
       await api.createRuleWithForce(newRule, forceCreate);
       showMessage('success', 'Rule created successfully');
-      setNewRule({ pattern: '', action: 'AUTO_ACCEPT', priority: 100, description: '' });
+      setNewRule({ pattern: '', action: 'AUTO_ACCEPT', priority: 100, description: '', approval_threshold: 1 });
       setRegexValidation({ valid: null, message: '' });
       setConflictCheck({ checked: false, hasConflicts: false, data: null });
       setForceCreate(false);
       await loadRules();
+      // Reload pending rules if on that tab
+      if (activeTab === 'pending') {
+        await loadPendingRules();
+      }
     } catch (error) {
       // Handle 409 conflict error
       if (error.message.includes('conflicts detected') || error.message.includes('409')) {
@@ -144,6 +189,18 @@ const AdminPanel = () => {
       await api.deleteRule(ruleId);
       showMessage('success', 'Rule deleted successfully');
       await loadRules();
+    } catch (error) {
+      showMessage('error', error.message);
+    }
+  };
+
+  const handleVoteOnRule = async (ruleId, voteType) => {
+    try {
+      const comment = voteComments[ruleId] || '';
+      await api.voteOnRule(ruleId, { vote: voteType, comment });
+      showMessage('success', `Vote ${voteType.toLowerCase()} submitted successfully`);
+      setVoteComments(prev => ({ ...prev, [ruleId]: '' }));
+      await loadPendingRules();
     } catch (error) {
       showMessage('error', error.message);
     }
@@ -176,16 +233,22 @@ const AdminPanel = () => {
           </div>
         )}
 
-        <div style={{ marginBottom: '2rem' }}>
-          <button onClick={() => setActiveTab('users')} style={tabStyle(activeTab === 'users')}>
-            Users
-          </button>
-          <button onClick={() => setActiveTab('rules')} style={tabStyle(activeTab === 'rules')}>
-            Rules
-          </button>
-          <button onClick={() => setActiveTab('audit')} style={tabStyle(activeTab === 'audit')}>
-            Audit Logs
-          </button>
+        <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <button onClick={() => setActiveTab('users')} style={tabStyle(activeTab === 'users')}>
+              Users
+            </button>
+            <button onClick={() => setActiveTab('rules')} style={tabStyle(activeTab === 'rules')}>
+              Rules
+            </button>
+            <button onClick={() => setActiveTab('pending')} style={tabStyle(activeTab === 'pending')}>
+              Pending Rules {pendingRules.length > 0 && `(${pendingRules.length})`}
+            </button>
+            <button onClick={() => setActiveTab('audit')} style={tabStyle(activeTab === 'audit')}>
+              Audit Logs
+            </button>
+          </div>
+          <NotificationBell />
         </div>
 
         {activeTab === 'users' && (
@@ -237,7 +300,7 @@ const AdminPanel = () => {
                     <input
                       type="number"
                       value={newUser.credits}
-                      onChange={(e) => setNewUser({ ...newUser, credits: parseInt(e.target.value) })}
+                      onChange={(e) => setNewUser({ ...newUser, credits: parseInt(e.target.value) || 0 })}
                       style={{
                         width: '100%',
                         padding: '0.5rem',
@@ -474,7 +537,7 @@ const AdminPanel = () => {
                     <input
                       type="number"
                       value={newRule.priority}
-                      onChange={(e) => setNewRule({ ...newRule, priority: parseInt(e.target.value) })}
+                      onChange={(e) => setNewRule({ ...newRule, priority: parseInt(e.target.value) || 1 })}
                       style={{
                         width: '100%',
                         padding: '0.5rem',
@@ -487,20 +550,45 @@ const AdminPanel = () => {
                     />
                   </div>
                 </div>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Description</label>
-                  <input
-                    type="text"
-                    value={newRule.description}
-                    onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      boxSizing: 'border-box'
-                    }}
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Description</label>
+                    <input
+                      type="text"
+                      value={newRule.description}
+                      onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                      Approval Threshold
+                      <span style={{ fontSize: '0.85rem', fontWeight: 'normal', color: '#666', marginLeft: '0.5rem' }}>
+                        (admins required)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      value={newRule.approval_threshold}
+                      onChange={(e) => setNewRule({ ...newRule, approval_threshold: parseInt(e.target.value) || 1 })}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        boxSizing: 'border-box'
+                      }}
+                      min="1"
+                      max="10"
+                      required
+                    />
+                  </div>
                 </div>
                 <button
                   type="submit"
@@ -577,6 +665,206 @@ const AdminPanel = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'pending' && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ marginTop: 0 }}>Pending Rules Awaiting Approval</h3>
+            {pendingRules.length === 0 ? (
+              <p style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>
+                No pending rules at this time
+              </p>
+            ) : (
+              pendingRules.map((rule) => {
+                const votes = selectedRuleVotes[rule.id] || [];
+                // Check if the CURRENT logged-in user has voted, not the rule creator
+                const userVote = currentUser ? votes.find(v => v.admin_id === currentUser.id) : null;
+                const hasVoted = userVote !== undefined;
+                
+                return (
+                  <div key={rule.id} style={{
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    padding: '1.5rem',
+                    marginBottom: '1.5rem',
+                    backgroundColor: '#f9f9f9'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+                          <h4 style={{ margin: 0, fontFamily: 'monospace', color: '#2c3e50' }}>
+                            {rule.pattern}
+                          </h4>
+                          <span style={{
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            backgroundColor: '#ffc107',
+                            color: '#856404',
+                            fontWeight: 'bold'
+                          }}>
+                            PENDING
+                          </span>
+                        </div>
+                        <p style={{ margin: '0.5rem 0', color: '#666' }}>{rule.description}</p>
+                        <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#666' }}>
+                          <span><strong>Action:</strong> {rule.action}</span>
+                          <span><strong>Priority:</strong> {rule.priority}</span>
+                          <span><strong>Threshold:</strong> {rule.approval_threshold} admin(s)</span>
+                          <span><strong>Created:</strong> {new Date(rule.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Vote Progress */}
+                    <div style={{
+                      backgroundColor: 'white',
+                      padding: '1rem',
+                      borderRadius: '4px',
+                      marginBottom: '1rem',
+                      border: '1px solid #ddd'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <span style={{ fontWeight: 'bold' }}>Approval Progress</span>
+                        <span style={{ color: rule.approval_count >= rule.approval_threshold ? '#28a745' : '#666' }}>
+                          {rule.approval_count} / {rule.approval_threshold} approvals
+                        </span>
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        height: '8px',
+                        backgroundColor: '#e0e0e0',
+                        borderRadius: '4px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${(rule.approval_count / rule.approval_threshold) * 100}%`,
+                          height: '100%',
+                          backgroundColor: rule.approval_count >= rule.approval_threshold ? '#28a745' : '#007bff',
+                          transition: 'width 0.3s ease'
+                        }}></div>
+                      </div>
+                      {rule.rejection_count > 0 && (
+                        <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: '#dc3545' }}>
+                          {rule.rejection_count} rejection(s)
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Votes List */}
+                    {votes.length > 0 && (
+                      <div style={{ marginBottom: '1rem' }}>
+                        <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>Votes:</h5>
+                        {votes.map((vote) => (
+                          <div key={vote.id} style={{
+                            padding: '0.75rem',
+                            backgroundColor: 'white',
+                            borderLeft: `4px solid ${vote.vote === 'APPROVE' ? '#28a745' : '#dc3545'}`,
+                            marginBottom: '0.5rem',
+                            fontSize: '0.85rem'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                              <strong>{vote.admin_name}</strong>
+                              <span style={{
+                                color: vote.vote === 'APPROVE' ? '#28a745' : '#dc3545',
+                                fontWeight: 'bold'
+                              }}>
+                                {vote.vote}
+                              </span>
+                            </div>
+                            {vote.comment && (
+                              <p style={{ margin: '0.25rem 0 0 0', color: '#666' }}>{vote.comment}</p>
+                            )}
+                            <span style={{ fontSize: '0.75rem', color: '#999' }}>
+                              {new Date(vote.voted_at).toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Voting Interface */}
+                    {!hasVoted && (
+                      <div style={{
+                        backgroundColor: 'white',
+                        padding: '1rem',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd'
+                      }}>
+                        <h5 style={{ margin: '0 0 0.75rem 0' }}>Cast Your Vote:</h5>
+                        <textarea
+                          placeholder="Add an optional comment..."
+                          value={voteComments[rule.id] || ''}
+                          onChange={(e) => setVoteComments(prev => ({ ...prev, [rule.id]: e.target.value }))}
+                          style={{
+                            width: '100%',
+                            padding: '0.5rem',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            marginBottom: '0.75rem',
+                            minHeight: '60px',
+                            resize: 'vertical',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                          <button
+                            onClick={() => handleVoteOnRule(rule.id, 'APPROVE')}
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#28a745',
+                              color: 'white',
+                              border: 'none',
+                              padding: '0.75rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              fontSize: '1rem'
+                            }}
+                          >
+                            ✓ Approve
+                          </button>
+                          <button
+                            onClick={() => handleVoteOnRule(rule.id, 'REJECT')}
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              padding: '0.75rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              fontSize: '1rem'
+                            }}
+                          >
+                            ✗ Reject
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {hasVoted && (
+                      <div style={{
+                        backgroundColor: '#e7f3ff',
+                        padding: '1rem',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        color: '#004085'
+                      }}>
+                        ✓ You have already voted on this rule
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
 
